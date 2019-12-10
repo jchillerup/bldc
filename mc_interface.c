@@ -1043,6 +1043,27 @@ int mc_interface_get_tachometer_abs_value(bool reset) {
 	return ret;
 }
 
+void mc_interface_tachometer_seek(int32_t target) {
+	// Don't accept if the motor is detecting
+	if (mc_interface_try_input()) {
+		return;
+	}
+
+	switch (m_conf.motor_type) {
+	case MOTOR_TYPE_BLDC:
+	case MOTOR_TYPE_DC:
+		mcpwm_tachometer_seek(target);
+		break;
+
+	case MOTOR_TYPE_FOC:
+		mcpwm_foc_tachometer_seek(target);
+		break;
+
+	default:
+		break;
+	}
+}
+
 float mc_interface_get_last_inj_adc_isr_duration(void) {
 	float ret = 0.0;
 

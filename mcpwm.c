@@ -59,6 +59,7 @@ static volatile float pos_pid_set_pos;
 static volatile float current_set;
 static volatile int tachometer;
 static volatile int tachometer_abs;
+static volatile int32_t tachometer_target;
 static volatile int tachometer_for_direction;
 static volatile int curr0_sum;
 static volatile int curr1_sum;
@@ -596,6 +597,28 @@ void mcpwm_set_duty_noramp(float dutyCycle) {
 		set_duty_cycle_ll(dutyCycle);
 	}
 }
+
+/**
+ * Use PWM control to inch toward the given tachometer target.
+ * 
+ * @param target
+ * The tachometer index at which to stop.
+ */
+void mcpwm_tachometer_seek(int32_t target)  {
+	int8_t direction = SIGN(target - mcpwm_get_tachometer_value(false));
+	// int8_t dir_mult = (m_conf->m_invert_direction ? -1 : 1);
+
+	tachometer_target = target;
+	control_mode = CONTROL_MODE_TACHOMETER_SEEK;
+	
+	// TODO: Make this a parameter
+	dutycycle_set = direction * 0.2f;
+
+	if (state != MC_STATE_RUNNING) {
+		state = MC_STATE_RUNNING;
+	}
+}
+
 
 /**
  * Use PID rpm control. Note that this value has to be multiplied by half of

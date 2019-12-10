@@ -34,6 +34,7 @@ bool mcpwm_foc_is_dccal_done(void);
 void mcpwm_foc_stop_pwm(void);
 void mcpwm_foc_set_duty(float dutyCycle);
 void mcpwm_foc_set_duty_noramp(float dutyCycle);
+void mcpwm_foc_tachometer_seek(int32_t target);
 void mcpwm_foc_set_pid_speed(float rpm);
 void mcpwm_foc_set_pid_pos(float pos);
 void mcpwm_foc_set_current(float current);
