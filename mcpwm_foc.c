@@ -109,6 +109,7 @@ static volatile float m_pll_speed;
 static volatile mc_sample_t m_samples;
 static volatile int m_tachometer;
 static volatile int m_tachometer_abs;
+static volatile int32_t m_tachometer_target;
 static volatile float m_last_adc_isr_duration;
 static volatile float m_pos_pid_now;
 static volatile bool m_init_done = false;
@@ -533,6 +534,36 @@ void mcpwm_foc_set_duty(float dutyCycle) {
 void mcpwm_foc_set_duty_noramp(float dutyCycle) {
 	// TODO: Actually do this without ramping
 	mcpwm_foc_set_duty(dutyCycle);
+}
+
+
+/**
+ * Use PWM control to inch toward the given tachometer target.
+ * 
+ * @param target
+ * The tachometer index at which to stop.
+ */
+void mcpwm_foc_tachometer_seek(int32_t target)  {
+	int8_t dir_mult = SIGN(m_conf->m_invert_direction ? -1 : 1);
+	int32_t tacho = mcpwm_foc_get_tachometer_value(false) * dir_mult;
+	int32_t delta = target - tacho;
+	int8_t direction = SIGN(delta) * dir_mult;
+
+	commands_printf("Dir Mult:  %i", dir_mult);
+	commands_printf("Tacho:     %i         [%i * %i]", tacho, mcpwm_foc_get_tachometer_value(false), dir_mult);
+	commands_printf("Target:    %i", target);
+	commands_printf("Delta:     %i", delta);
+	commands_printf("Direction: %i", direction);
+
+	m_tachometer_target = target * dir_mult;
+	m_control_mode = CONTROL_MODE_TACHOMETER_SEEK;
+	
+	// TODO: Make this a parameter
+	m_duty_cycle_set = direction * 0.2f;
+
+	if (m_state != MC_STATE_RUNNING) {
+		m_state = MC_STATE_RUNNING;
+	}
 }
 
 /**
@@ -1892,7 +1923,8 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 		float duty_set = m_duty_cycle_set;
 		bool control_duty = m_control_mode == CONTROL_MODE_DUTY ||
 				m_control_mode == CONTROL_MODE_OPENLOOP_DUTY ||
-				m_control_mode == CONTROL_MODE_OPENLOOP_DUTY_PHASE;
+				m_control_mode == CONTROL_MODE_OPENLOOP_DUTY_PHASE || 
+				m_control_mode == CONTROL_MODE_TACHOMETER_SEEK;
 
 		// When the modulation is low in brake mode and the set brake current
 		// cannot be reached, short all phases to get more braking without
@@ -1951,6 +1983,18 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 					iq_set_tmp = -m_conf->lo_current_max;
 				}
 			}
+
+			if (m_control_mode == CONTROL_MODE_TACHOMETER_SEEK) {
+				int32_t tick_difference = m_tachometer_target - mcpwm_foc_get_tachometer_value(false);
+
+				if (abs(tick_difference) < 100) {
+					duty_set = 0.0;
+					m_control_mode = CONTROL_MODE_NONE;
+				} else {
+					timeout_reset();
+				}
+			} 
+			
 		} else if (m_control_mode == CONTROL_MODE_CURRENT_BRAKE) {
 			// Braking
 			iq_set_tmp = fabsf(iq_set_tmp);

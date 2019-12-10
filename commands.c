@@ -337,6 +337,12 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		timeout_reset();
 	} break;
 
+	case COMM_TACHOMETER_SEEK: {
+		int32_t ind = 0;
+		mc_interface_tachometer_seek((int32_t) buffer_get_int32(data, &ind));
+		timeout_reset();
+	} break;
+	
 	case COMM_SET_CURRENT: {
 		int32_t ind = 0;
 		mc_interface_set_current((float)buffer_get_int32(data, &ind) / 1000.0);

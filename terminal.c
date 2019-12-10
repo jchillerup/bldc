@@ -683,6 +683,22 @@ void terminal_process_string(char *str) {
 				encoder_sincos_get_signal_above_max_error_cnt(),
 				(double)encoder_sincos_get_signal_above_max_error_rate() * (double)100.0);
 		}
+	} else if(strcmp(argv[0], "tachometer_seek") == 0) {
+		int32_t target = 0;
+		sscanf(argv[1], "%ld", &target);
+
+		/*
+		commands_printf("Tachometer counts: %i\n", mc_interface_get_tachometer_value(0));
+		commands_printf("Moving to:         %i\n", target);
+
+		int32_t diff = target - mc_interface_get_tachometer_value(0);
+
+		commands_printf("Delta:            %i\n", diff);
+		commands_printf("Sign of delta:    %i", SIGN(diff));
+		*/
+	
+		timeout_reset();
+		mc_interface_tachometer_seek(target);
 	}
 
 	// The help command
